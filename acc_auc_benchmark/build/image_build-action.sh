@@ -46,8 +46,7 @@ function runDockerContrainer(){
     if [[ $container_name == "whl_build" ]];then
 	sudo docker volume create ut_cache
     	optional="-v  $cache_path:/root/.cache \
-		 --rm"
-		 
+		 --rm"		 
     fi
     
     sudo docker run \
@@ -142,15 +141,15 @@ function build_image()
     class_name=${temp_name%12138*}
     checkEnv $temp_name \
     && runDockerContrainer $base_image_repo $temp_name  /whl_build/whl_package/whl_install.sh  #运行容器安装whl
-    # 获取刚才安装好的容器id
-    temp_container_id=$(sudo docker ps -a | grep $temp_name |awk -F " " '{print $1}')
     # 提交成镜像
-    sudo docker commit $temp_container_id temp_image
+    sudo docker commit $temp_name temp_image
     # 获取镜像id
     temp_image_id=$(sudo docker images | grep temp_image | awk -F " " '{print $3}' )
     # tag镜像并推送至仓库
-    sudo docker tag $temp_image_id "cesg-prc-registry.cn-beijing.cr.aliyuncs.com/cesg-ali/$class_name:$image_tag" \
-    && sudo docker push "cesg-prc-registry.cn-beijing.cr.aliyuncs.com/cesg-ali/$class_name:$image_tag"  # 将镜像推送到仓库
+    sudo docker tag $temp_image_id temp_image1 \
+    && sudo docker run -itd --name temp_container1  temp_image1 /bin/bash \
+    && sudo docker commit temp_container1 "cesg-prc-registry.cn-beijing.cr.aliyuncs.com/cesg-ali/$class_name:$image_tag"\
+    sudo docker push "cesg-prc-registry.cn-beijing.cr.aliyuncs.com/cesg-ali/$class_name:$image_tag"  # 将镜像推送到仓库
     # 将镜像tag为latest，并推送至仓库
     if [[ $latest == 1 ]];then
         sudo docker tag $temp_image_id "cesg-prc-registry.cn-beijing.cr.aliyuncs.com/cesg-ali/$class_name:latest"\
@@ -159,8 +158,10 @@ function build_image()
     fi
     # 删除刚才的临时镜像
     sudo docker rmi -f temp_image
+    sudo docker rmi -f temp_image1
     # 删除刚才安装whl的容器
     sudo docker rm -f $temp_container_id 
+    sudo docker rm -f temp_container1
 }
 
 
